@@ -1,0 +1,30 @@
+{
+    "name": "easyswoole/crontab",
+    "description": "easyswoole extension tool library",
+    "type": "library",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "evalor",
+            "email": "mipone@foxmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.1.0",
+        "easyswoole/component": "^2.0",
+        "dragonmantank/cron-expression": "^2.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "EasySwoole\\Crontab\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "EasySwoole\\Crontab\\Tests\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "easyswoole/swoole-ide-helper": "^1.3"
+    }
+}

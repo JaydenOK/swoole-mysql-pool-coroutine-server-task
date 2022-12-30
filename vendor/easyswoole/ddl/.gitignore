@@ -1,0 +1,11 @@
+\#*
+.\#*
+.*
+!.gitignore
+*.swp
+*.swo
+*~
+$.swn
+vendor/
+tests/Database
+composer.lock

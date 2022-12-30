@@ -1,0 +1,15 @@
+{
+    "name": "root/easy-mysql-pool",
+    "authors": [
+        {
+            "name": "jayden",
+            "email": "6034@qq.com"
+        }
+    ],
+    "require": {
+        "easyswoole/pool": "^1.1",
+        "easyswoole/orm": "^1.5",
+        "easyswoole/redis": "^1.3",
+        "easyswoole/easyswoole": "^3.5"
+    }
+}

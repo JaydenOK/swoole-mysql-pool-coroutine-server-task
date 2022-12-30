@@ -3,6 +3,9 @@
 namespace module\server;
 
 use chan;
+use EasySwoole\EasySwoole\Config;
+use EasySwoole\ORM\Db\Connection;
+use EasySwoole\ORM\DbManager;
 use Exception;
 use InvalidArgumentException;
 use module\lib\PdoPoolClient;
@@ -77,7 +80,7 @@ class TaskServerManager
             $this->taskType = isset($argv[2]) ? (string)$argv[2] : '';
             $this->port = isset($argv[3]) ? (string)$argv[3] : 9901;
             $this->daemon = isset($argv[4]) && (in_array($argv[4], ['daemon', 'd', '-d'])) ? true : false;
-            $this->isUsePool = isset($argv[5]) && (in_array($argv[5], ['use_pool', 'pool', '-pool'])) ? true : false;
+            $this->isUsePool = true;
             if (empty($this->taskType) || empty($this->port) || empty($cmd)) {
                 throw new InvalidArgumentException('params error');
             }
@@ -180,11 +183,29 @@ class TaskServerManager
         //初始化连接池
         if ($this->isUsePool) {
             try {
-                $this->pool = (new PdoPoolClient())->initPool($this->poolSize);
-                //预热，填充连接池
-                $this->pool->fill();
-                //定期检查连接池对象
-                $this->checkPool();
+                //================= 注册 mysql orm 连接池 =================
+                $config = new \EasySwoole\ORM\Db\Config(\EasySwoole\EasySwoole\Config::getInstance()->getConf('MYSQL'));
+
+                $config->setMinObjectNum(5)->setMaxObjectNum(30); // 【可选操作】我们已经在 dev.php 中进行了配置 配置连接池数量; 总连接数 = minObjectNum * SETTING.worker_num
+                //DbManager::getInstance()->addConnection(new Connection($config));
+                // 设置指定连接名称 后期可通过连接名称操作不同的数据库
+                $ormConnection = new Connection($config);
+
+                DbManager::getInstance()->addConnection(new Connection($config), 'main');    //连接池1
+                DbManager::getInstance()->addConnection(new Connection($config), 'write');     //连接池2
+
+                //=================  注册redis连接池 (http://192.168.92.208:9511/Account/mysqlPoolList)  =================
+                $config = new \EasySwoole\Pool\Config();
+                $redisConfig1 = new \EasySwoole\Redis\Config\RedisConfig(Config::getInstance()->getConf('REDIS'));
+                // 注册连接池管理对象
+                \EasySwoole\Pool\Manager::getInstance()->register(new \App\Pool\RedisPool($config, $redisConfig1), 'redis');
+                /**
+                 * @var $connection \EasySwoole\ORM\Db\Connection
+                 */
+                $connection = DbManager::getInstance()->getConnection('main');
+                $connection->__getClientPool()->keepMin();   //预热连接池1
+
+
                 $this->logMessage('use pool:' . $this->poolSize);
             } catch (Exception $e) {
                 $this->logMessage('initPool error:' . $e->getMessage());
