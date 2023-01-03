@@ -10,6 +10,8 @@
         "easyswoole/pool": "^1.1",
         "easyswoole/orm": "^1.5",
         "easyswoole/redis": "^1.3",
-        "easyswoole/easyswoole": "^3.5"
+        "easyswoole/easyswoole": "^3.5",
+        "ext-json": "*",
+        "ext-pcntl": "*"
     }
 }

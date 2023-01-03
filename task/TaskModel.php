@@ -2,51 +2,29 @@
 
 namespace module\task;
 
-use module\lib\MysqliClient;
+use EasySwoole\ORM\Db\MysqliClient;
 
 abstract class TaskModel implements Task
 {
 
     /**
-     * @var MysqliClient
+     * @var MysqliClient|null
      */
-    protected $mysqliClient;
-    /**
-     * @var \module\lib\MysqliDb
-     */
-    protected $query;
-    /**
-     * @var \PDO | \Swoole\Database\PDOProxy | null
-     */
-    protected $poolObject;
-
-    protected $isUsePool = false;
+    protected $mysqlClient;
 
     /**
      * TaskModel constructor.
-     * @param \PDO | \Swoole\Database\PDOProxy | null $poolObject
+     * @param MysqliClient $mysqlClient
      */
-    public function __construct($poolObject = null)
+    public function __construct($mysqlClient = null)
     {
-        if ($poolObject !== null) {
-            $this->isUsePool = true;
-            $this->poolObject = $poolObject;
-        } else {
-            $this->mysqliClient = new MysqliClient();
-            $this->query = $this->mysqliClient->getQuery();
-        }
+        $this->mysqlClient = $mysqlClient;
     }
 
     //关闭mysql短连接
     public function __destruct()
     {
-        if ($this->isUsePool) {
-            $this->poolObject = null;
-        } else {
-            $this->query->disconnect();
-        }
-        $this->query = null;
-        $this->mysqliClient = null;
+        $this->mysqlClient = null;
     }
 
 }

@@ -1,16 +1,18 @@
 <?php
+/**
+ * 使用第三方easyswoole连接池
+ */
 
 namespace module\server;
 
 use chan;
-use EasySwoole\EasySwoole\Config;
 use EasySwoole\ORM\Db\Connection;
 use EasySwoole\ORM\DbManager;
+use EasySwoole\Pool\Manager;
 use Exception;
 use InvalidArgumentException;
-use module\lib\PdoPoolClient;
+use module\lib\RedisPool;
 use module\task\TaskFactory;
-use PDO;
 use Swoole\Coroutine;
 use Swoole\Database\PDOPool;
 use Swoole\Database\PDOProxy;
@@ -52,15 +54,6 @@ class TaskServerManager
      */
     private $pidFile;
     /**
-     * @var int
-     */
-    private $poolSize = 16;
-    /**
-     * 是否使用连接池，可参数指定，默认不使用
-     * @var bool
-     */
-    private $isUsePool = false;
-    /**
      * @var PDOPool
      */
     private $pool;
@@ -72,6 +65,14 @@ class TaskServerManager
      * @var Table
      */
     private $poolTable;
+    /**
+     * @var string
+     */
+    private $mainMysql = 'mainMysql';
+    /**
+     * @var string
+     */
+    private $mainRedis = 'mainRedis';
 
     public function run($argv)
     {
@@ -80,7 +81,6 @@ class TaskServerManager
             $this->taskType = isset($argv[2]) ? (string)$argv[2] : '';
             $this->port = isset($argv[3]) ? (string)$argv[3] : 9901;
             $this->daemon = isset($argv[4]) && (in_array($argv[4], ['daemon', 'd', '-d'])) ? true : false;
-            $this->isUsePool = true;
             if (empty($this->taskType) || empty($this->port) || empty($cmd)) {
                 throw new InvalidArgumentException('params error');
             }
@@ -145,9 +145,6 @@ class TaskServerManager
 
     private function setServerSetting($setting = [])
     {
-        //开启内置协程，默认开启
-        //当 enable_coroutine 设置为 true 时，底层自动在 onRequest 回调中创建协程，开发者无需自行使用 go 函数创建协程
-        //当 enable_coroutine 设置为 false 时，底层不会自动创建协程，开发者如果要使用协程，必须使用 go 自行创建协程
         $this->httpServer->set(array_merge($this->setting, $setting));
     }
 
@@ -163,9 +160,6 @@ class TaskServerManager
 
     public function onStart(Server $server)
     {
-        //onStart 调用时修改主进程名称
-        //onManagerStart 调用时修改管理进程 (manager) 的名称
-        //onWorkerStart 调用时修改 worker 进程名称
         $this->logMessage('start, master_pid:' . $server->master_pid);
         $this->renameProcessName($this->processPrefix . $this->taskType . '-master');
     }
@@ -181,49 +175,48 @@ class TaskServerManager
         $this->logMessage('worker start, worker_pid:' . $server->worker_pid);
         $this->renameProcessName($this->processPrefix . $this->taskType . '-worker-' . $workerId);
         //初始化连接池
-        if ($this->isUsePool) {
-            try {
-                //================= 注册 mysql orm 连接池 =================
-                $config = new \EasySwoole\ORM\Db\Config(\EasySwoole\EasySwoole\Config::getInstance()->getConf('MYSQL'));
-
-                $config->setMinObjectNum(5)->setMaxObjectNum(30); // 【可选操作】我们已经在 dev.php 中进行了配置 配置连接池数量; 总连接数 = minObjectNum * SETTING.worker_num
-                //DbManager::getInstance()->addConnection(new Connection($config));
-                // 设置指定连接名称 后期可通过连接名称操作不同的数据库
-                $ormConnection = new Connection($config);
-
-                DbManager::getInstance()->addConnection(new Connection($config), 'main');    //连接池1
-                DbManager::getInstance()->addConnection(new Connection($config), 'write');     //连接池2
-
-                //=================  注册redis连接池 (http://192.168.92.208:9511/Account/mysqlPoolList)  =================
-                $config = new \EasySwoole\Pool\Config();
-                $redisConfig1 = new \EasySwoole\Redis\Config\RedisConfig(Config::getInstance()->getConf('REDIS'));
-                // 注册连接池管理对象
-                \EasySwoole\Pool\Manager::getInstance()->register(new \App\Pool\RedisPool($config, $redisConfig1), 'redis');
-                /**
-                 * @var $connection \EasySwoole\ORM\Db\Connection
-                 */
-                $connection = DbManager::getInstance()->getConnection('main');
-                $connection->__getClientPool()->keepMin();   //预热连接池1
+        try {
+            //================= 注册 mysql 连接池 =================
+            $config = new \EasySwoole\ORM\Db\Config();
+            $config->setHost('192.168.92.209')
+                ->setPort(3306)
+                ->setUser('appuser')
+                ->setPassword('adf2FASFAS')
+                ->setTimeout(30)
+                ->setCharset('utf8')
+                ->setDatabase('yibai_account_manage')
+                ->setMinObjectNum(5)
+                ->setMaxObjectNum(30);
+            DbManager::getInstance()->addConnection(new Connection($config), $this->mainMysql);    //连接池1
+            $connection = DbManager::getInstance()->getConnection($this->mainMysql);
+            $connection->__getClientPool()->keepMin();   //预热连接池1
 
 
-                $this->logMessage('use pool:' . $this->poolSize);
-            } catch (Exception $e) {
-                $this->logMessage('initPool error:' . $e->getMessage());
-            }
+            //=================  注册redis连接池 (http://192.168.92.208:9511/Account/mysqlPoolList)  =================
+            $config = new \EasySwoole\Pool\Config();
+            $redisConfig = new \EasySwoole\Redis\Config\RedisConfig();
+            $redisConfig->setHost('192.168.92.208');
+            $redisConfig->setPort(7001);
+            $redisConfig->setAuth('fok09213');
+            $redisConfig->setTimeout(30);
+            // 注册连接池管理对象
+            Manager::getInstance()->register(new RedisPool($config, $redisConfig), $this->mainRedis);
+            //测试redis
+            $this->testPool();
+            $this->logMessage('use pool');
+        } catch (Exception $e) {
+            $this->logMessage('initPool error:' . $e->getMessage());
         }
     }
 
     public function onWorkerStop(Server $server, int $workerId)
     {
         $this->logMessage('worker stop, worker_pid:' . $server->worker_pid);
-        if ($this->isUsePool) {
-            try {
-                $this->logMessage('pool close');
-                $this->pool && $this->pool->close();
-                $this->clearTimer();
-            } catch (Exception $e) {
-                $this->logMessage('pool close error:' . $e->getMessage());
-            }
+        try {
+            $this->logMessage('pool close');
+            $this->clearTimer();
+        } catch (Exception $e) {
+            $this->logMessage('pool close error:' . $e->getMessage());
         }
     }
 
@@ -237,8 +230,8 @@ class TaskServerManager
                 throw new InvalidArgumentException('parameters error');
             }
             //数据库配置信息
-            $pdo = $this->isUsePool ? $this->getPoolObject() : null;
-            $mainTaskModel = TaskFactory::factory($taskType, $pdo);
+            $mysqlClient = $this->getMysqlObject();
+            $mainTaskModel = TaskFactory::factory($taskType, $mysqlClient);
             $taskList = $mainTaskModel->getTaskList(['limit' => $total]);       //已一键协程化，多个请求时，此处不阻塞
             if (empty($taskList)) {
                 throw new InvalidArgumentException('no tasks waiting to be executed');
@@ -274,8 +267,8 @@ class TaskServerManager
                     go(function () use ($producerChan, $dataChan, $task) {
                         try {
                             //每个协程，创建独立连接（可从连接池获取）
-                            $pdo = $this->isUsePool ? $this->getPoolObject() : null;
-                            $taskModel = TaskFactory::factory($task['task_type'], $pdo);
+                            $mysqlClient = $this->getMysqlObject();
+                            $taskModel = TaskFactory::factory($task['task_type'], $mysqlClient);
                             Coroutine::defer(function () use ($taskModel) {
                                 //释放内存及mysql连接
                                 unset($taskModel);
@@ -311,6 +304,7 @@ class TaskServerManager
             //返回响应
             $endTime = time();
             $return = ['taskCount' => $taskCount, 'concurrency' => $concurrency, 'useTime' => ($endTime - $startTime) . 's'];
+            $this->logMessage('all task done:' . $taskCount);
         } catch (InvalidArgumentException $e) {
             $return = json_encode(['Exception' => $e->getMessage()]);
         } catch (Exception $e) {
@@ -362,26 +356,29 @@ class TaskServerManager
     }
 
     /**
-     * swoole官方连接池，PDOProxy 实现了自动重连(代理模式)，构造函数注入 \PDO 对象。即$__object属性
-     * 可改用EasySwoole连接池
-     * @return PDO|PDOProxy
-     * @throws Exception
+     * @return \EasySwoole\ORM\Db\MysqliClient
      */
-    private function getPoolObject()
+    private function getMysqlObject()
     {
-        $pdo = $this->pool->get();
-        if (!($pdo instanceof PDOProxy || $pdo instanceof PDO)) {
-            throw new Exception('getNullPoolObject');
-        }
-        $this->logMessage('pdo get:' . spl_object_hash($pdo));
-        defer(function () use ($pdo) {
-            //协程函数结束归还对象
-            if ($pdo !== null) {
-                $this->logMessage('pdo put:' . spl_object_hash($pdo));
-                $this->pool->put($pdo);
-            }
-        });
-        return $pdo;
+        // 获取连接池
+        $connection = DbManager::getInstance()->getConnection($this->mainMysql);
+        $timeout = null;
+        //即 createObject()对象，->defer($timeout)参数为空 默认获取config的timeout，此方法会自动回收对象，用户无需关心。
+        /* @var  $mysqlClient \EasySwoole\ORM\Db\MysqliClient */
+        $mysqlClient = $connection->defer($timeout);
+        return $mysqlClient;
+    }
+
+    /**
+     * @return \Redis
+     */
+    private function getRedisObject()
+    {
+        // 获取连接池
+        $redisPool = Manager::getInstance()->get($this->mainRedis);
+        $timeout = null;
+        $redis = $redisPool->defer($timeout);
+        return $redis;
     }
 
     //连接池对象注意点：
@@ -425,6 +422,21 @@ class TaskServerManager
         $this->poolTable->column('loadUseTimes', Table::TYPE_INT, 10);
         $this->poolTable->column('lastAliveTime', Table::TYPE_INT, 10);
         $this->poolTable->create();
+    }
+
+    private function testPool()
+    {
+        //测试mysql
+        //$mysqlClient = $this->getMysqlObject();
+
+        //测试redis
+        $redis = $this->getRedisObject();
+        //todo
+        $key = 'co-server-redis-test';
+        $redis->set($key, 'a:' . mt_rand(1000, 9999) . ':' . date('Y-m-d H:i:s'), 120);
+        $result = $redis->get($key);
+        echo 'redisTest:' . $result . PHP_EOL;
+        $redis->del($key);
     }
 
 }

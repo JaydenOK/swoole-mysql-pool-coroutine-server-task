@@ -3,7 +3,7 @@
 
 #### 功能逻辑
 ```text
-
+使用了第三方 easyswoole 连接池。
 ```
 
 #### 版本
@@ -15,7 +15,7 @@
 
 ```shell script
 
-[root@ac_web ]# php service.php start Amazon 9901  -d -pool  (守护进程启动，使用连接池方式)
+[root@ac_web ]# php service.php start Amazon 9901  -d  (守护进程启动)
  
 [root@ac_web ]# curl "127.0.0.1:9901/?task_type=Amazon&concurrency=5&total=200"
 {"taskCount":200,"concurrency":5,"useTime":"56s"}
