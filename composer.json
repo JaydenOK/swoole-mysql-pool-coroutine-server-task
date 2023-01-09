@@ -12,6 +12,7 @@
         "easyswoole/redis": "^1.3",
         "easyswoole/easyswoole": "^3.5",
         "ext-json": "*",
-        "ext-pcntl": "*"
+        "ext-pcntl": "*",
+        "ext-redis": "*"
     }
 }

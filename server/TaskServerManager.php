@@ -102,7 +102,7 @@ class TaskServerManager
                     break;
             }
         } catch (Exception $e) {
-            $this->logMessage('Exception:' . $e->getMessage());
+            $this->logMessage($e->getMessage());
         }
     }
 
@@ -117,6 +117,8 @@ class TaskServerManager
             'daemonize' => (bool)$this->daemon,
             'log_file' => MODULE_DIR . '/logs/server-' . date('Y-m') . '.log',
             'pid_file' => MODULE_DIR . '/logs/' . $this->pidFile,
+            //设置Worker进程收到停止服务通知后最大等待时间【默认值：3】，需大于定时器周期时间，否则通知会报Warning异常
+            'max_wait_time' => 10,
         ];
         $this->setServerSetting($setting);
         $this->createTable();
@@ -170,6 +172,7 @@ class TaskServerManager
         $this->renameProcessName($this->processPrefix . $this->taskType . '-manager');
     }
 
+    //连接池，每个worker进程隔离
     public function onWorkerStart(Server $server, int $workerId)
     {
         $this->logMessage('worker start, worker_pid:' . $server->worker_pid);
@@ -203,7 +206,7 @@ class TaskServerManager
             Manager::getInstance()->register(new RedisPool($config, $redisConfig), $this->mainRedis);
             //测试redis
             $this->testPool();
-            $this->logMessage('use pool');
+            $this->logMessage('use pool:' . $server->worker_pid);
         } catch (Exception $e) {
             $this->logMessage('initPool error:' . $e->getMessage());
         }
@@ -431,11 +434,11 @@ class TaskServerManager
 
         //测试redis
         $redis = $this->getRedisObject();
-        //todo
+        //@todo
         $key = 'co-server-redis-test';
         $redis->set($key, 'a:' . mt_rand(1000, 9999) . ':' . date('Y-m-d H:i:s'), 120);
         $result = $redis->get($key);
-        echo 'redisTest:' . $result . PHP_EOL;
+        $this->logMessage('redisTest:' . $result);
         $redis->del($key);
     }
 
