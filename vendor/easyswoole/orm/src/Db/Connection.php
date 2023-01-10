@@ -1,5 +1,6 @@
 <?php
 
+//对 MysqlPool 封装，getPool() 获取 MysqlPool。连接池实例化时调用__getClientPool
 
 namespace EasySwoole\ORM\Db;
 
@@ -20,7 +21,7 @@ class Connection implements ConnectionInterface
 
     function defer(float $timeout = null): ?ClientInterface
     {
-        if($timeout === null){
+        if ($timeout === null) {
             $timeout = $this->config->getGetObjectTimeout();
         }
         return $this->getPool()->defer($timeout);
@@ -32,9 +33,9 @@ class Connection implements ConnectionInterface
     }
 
 
-    protected function getPool():MysqlPool
+    protected function getPool(): MysqlPool
     {
-        if(!$this->pool){
+        if (!$this->pool) {
             $this->pool = new MysqlPool($this->config);
         }
         return $this->pool;
@@ -43,7 +44,7 @@ class Connection implements ConnectionInterface
     /**
      * @return Config|null
      */
-    public function getConfig():?Config
+    public function getConfig(): ?Config
     {
         return $this->config;
     }

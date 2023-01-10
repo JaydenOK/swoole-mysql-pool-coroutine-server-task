@@ -10,7 +10,8 @@ use EasySwoole\Spl\SplBean;
 class Config extends SplBean
 {
     //周期性检查时间
-    protected $intervalCheckTime = 10*1000;
+    protected $intervalCheckTime = 10 * 1000;
+    //超时时间阈值，超过闲置时间未使用，释放，单位秒
     protected $maxIdleTime = 15;
     //连接池最大数
     protected $maxObjectNum = 20;
@@ -69,7 +70,7 @@ class Config extends SplBean
 
     public function setMaxObjectNum(int $maxObjectNum): Config
     {
-        if($this->minObjectNum >= $maxObjectNum){
+        if ($this->minObjectNum >= $maxObjectNum) {
             throw new Exception('min num is bigger than max');
         }
         $this->maxObjectNum = $maxObjectNum;
@@ -137,7 +138,7 @@ class Config extends SplBean
 
     public function setMinObjectNum(int $minObjectNum): Config
     {
-        if($minObjectNum >= $this->maxObjectNum){
+        if ($minObjectNum >= $this->maxObjectNum) {
             throw new Exception('min num is bigger than max');
         }
         $this->minObjectNum = $minObjectNum;

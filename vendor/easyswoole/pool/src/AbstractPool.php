@@ -33,7 +33,7 @@ abstract class AbstractPool
     private $loadWaitTimes = 0;
     // 每次getObj 记录该连接池取出的次数
     private $loadUseTimes = 0;
-
+    //当前Worker进程连接池的hash值
     private $poolHash;
     //正在使用的连接对象，hash为键，对象为值
     private $inUseObject = [];
@@ -53,6 +53,7 @@ abstract class AbstractPool
             throw new Exception("pool max num is small than min num for {$class} error");
         }
         $this->conf = $conf;
+        //指定行数1024
         $this->statusTable = new Table(1024);
         $this->statusTable->column('created', Table::TYPE_INT, 10);
         $this->statusTable->column('pid', Table::TYPE_INT, 10);
@@ -231,7 +232,8 @@ abstract class AbstractPool
         }
     }
 
-    /*
+    /**
+     * 保持连接可用性，心跳检测，超时连接移除
      * 超过$idleTime未出队使用的，将会被回收。
      */
     public function idleCheck(int $idleTime)
@@ -273,22 +275,24 @@ abstract class AbstractPool
     }
 
     /*
-     * 连接池连接是否可用检查，保存最小连接数
+     * 检查连接池连接是否可用，保持最小连接数，每10秒执行一次
      * 允许外部调用，初始化后，启用定时器Timer周期性检测
      */
     public function intervalCheck()
     {
-        //删除死去的进程状态
+        //更新当前pool最后存活时间
         $this->statusTable->set($this->poolHash(), [
             'lastAliveTime' => time()
         ]);
         $list = [];
         $time = time();
+        //遍历所有pool（目前就只支持一个，永不清理了）
         foreach ($this->statusTable as $key => $item) {
             if ($time - $item['lastAliveTime'] >= 2) {
                 $list[] = $key;
             }
         }
+        //删除其它超时的pool进程
         foreach ($list as $key) {
             $this->statusTable->del($key);
         }
@@ -298,6 +302,7 @@ abstract class AbstractPool
     }
 
     /**
+     * 心跳检测（子类实现），如 mysql-query: select 1
      * @param $item $item->__lastUseTime 属性表示该对象被最后一次使用的时间
      * @return bool
      */
@@ -307,7 +312,7 @@ abstract class AbstractPool
     }
 
     /*
-    * 可以解决冷启动问题
+    * 可以解决冷启动问题，预热
     */
     public function keepMin(?int $num = null): int
     {
@@ -462,6 +467,7 @@ abstract class AbstractPool
         return $this;
     }
 
+    //直接调用，使用完立即归还
     public function invoke(callable $call, float $timeout = null)
     {
         $obj = $this->getObj($timeout);
@@ -504,7 +510,7 @@ abstract class AbstractPool
 
     /**
      * 懒惰模式，可以提前创建 pool对象，因此调用前执行初始化检测
-     * 此方法只会初始化一次， poolChannel属性不为null执行，故初始化预热、获取连接对象，启动检测定时器（连接池为空没有影响）
+     * (此方法只会初始化一次)， poolChannel属性不为null执行，故初始化预热、获取连接对象，启动检测定时器（连接池为空没有影响）
      */
     private function init()
     {
