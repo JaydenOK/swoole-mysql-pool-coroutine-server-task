@@ -3,7 +3,7 @@
 
 #### 功能逻辑
 ```text
-使用了第三方 easyswoole 连接池。
+协程并发项目，使用easyswoole第三方连接池的（用途有并发刷新账号token，拉单，拉Amazon报告等）
 ```
 
 #### 版本

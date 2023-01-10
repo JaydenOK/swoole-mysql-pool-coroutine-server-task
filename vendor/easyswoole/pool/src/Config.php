@@ -9,11 +9,16 @@ use EasySwoole\Spl\SplBean;
 
 class Config extends SplBean
 {
+    //周期性检查时间
     protected $intervalCheckTime = 10*1000;
     protected $maxIdleTime = 15;
+    //连接池最大数
     protected $maxObjectNum = 20;
+    //连接池最小数
     protected $minObjectNum = 5;
+    //获取连接超时时间
     protected $getObjectTimeout = 3.0;
+    //获取连接时间阈值，判断连接池数量是否过于空闲，用于达到阈值回收部分连接
     protected $loadAverageTime = 0.001;
 
     protected $extraConf;
