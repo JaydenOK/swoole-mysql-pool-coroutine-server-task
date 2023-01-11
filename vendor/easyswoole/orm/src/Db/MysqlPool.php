@@ -16,6 +16,7 @@ class MysqlPool extends AbstractPool
         $config = $this->getConfig();
         $client = new MysqliClient(new MysqlConfig($config->toArray()));
         if($client->connect()){
+            //连接成功，初始化ping时间
             $client->__lastPingTime = 0;
             return $client;
         }else{
@@ -30,7 +31,7 @@ class MysqlPool extends AbstractPool
     public function itemIntervalCheck($item): bool
     {
         /**
-         * 已经达到ping的时间间隔
+         * 已经达到ping的时间间隔，createObject() 连接成功，初始化$item->__lastPingTime=0
          */
         /** @var Config $config */
         $config = $this->getConfig();

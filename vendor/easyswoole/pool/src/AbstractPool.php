@@ -46,6 +46,7 @@ abstract class AbstractPool
      */
     abstract protected function createObject();
 
+    //Connection()->getPool(); ->  new MysqlPool() -> class MysqlPool extends AbstractPool
     public function __construct(Config $conf)
     {
         if ($conf->getMinObjectNum() >= $conf->getMaxObjectNum()) {
@@ -53,7 +54,7 @@ abstract class AbstractPool
             throw new Exception("pool max num is small than min num for {$class} error");
         }
         $this->conf = $conf;
-        //指定行数1024
+        //指定行数1024，同 $redis->hset('key', 'field', 'value');
         $this->statusTable = new Table(1024);
         $this->statusTable->column('created', Table::TYPE_INT, 10);
         $this->statusTable->column('pid', Table::TYPE_INT, 10);
@@ -233,7 +234,7 @@ abstract class AbstractPool
     }
 
     /**
-     * 保持连接可用性，心跳检测，超时连接移除
+     * 保持连接可用性，所有连接心跳检测；超时未使用并且当前大于最小连接数，连接移除
      * 超过$idleTime未出队使用的，将会被回收。
      */
     public function idleCheck(int $idleTime)
@@ -249,7 +250,7 @@ abstract class AbstractPool
             if (!$item) {
                 continue;
             }
-            //回收超时没有使用的链接
+            //回收超时没有使用的链接(默认15s)
             if (time() - $item->__lastUseTime > $idleTime) {
                 $num = $this->getConfig()->getMinObjectNum();
                 if ($this->createdNum > $num) {
