@@ -138,7 +138,7 @@ abstract class AbstractPool
             $timeout = $this->getConfig()->getGetObjectTimeout();
         }
         $object = null;
-        //2，连接池的连接为空，初始化连接对象
+        //2，连接池的连接为空，创建新的连接对象，连接池数不够时新建(但不超过最大数)
         if ($this->poolChannel->isEmpty()) {
             try {
                 $this->initObject();
@@ -254,6 +254,7 @@ abstract class AbstractPool
             if (time() - $item->__lastUseTime > $idleTime) {
                 $num = $this->getConfig()->getMinObjectNum();
                 if ($this->createdNum > $num) {
+                    echo date('[Y-m-d H:i:s]') . 'idleCheck:' . $this->createdNum . PHP_EOL;
                     //标记为不在队列内，允许进行gc回收
                     $hash = $item->__objHash;
                     $this->objHash[$hash] = false;
@@ -261,12 +262,13 @@ abstract class AbstractPool
                     continue;
                 }
             }
-            //执行itemIntervalCheck检查
+            //执行itemIntervalCheck检查，select 1 心跳检测
             if (!$this->itemIntervalCheck($item)) {
                 //标记为不在队列内，允许进行gc回收
                 $hash = $item->__objHash;
                 $this->objHash[$hash] = false;
                 $this->unsetObj($item);
+                echo date('[Y-m-d H:i:s]') . 'itemIntervalCheck:' . $this->createdNum . PHP_EOL;
             } else {
                 //如果itemIntervalCheck 为真，则重新标记为已经使用过，可以用。
                 $item->__lastUseTime = time();

@@ -189,7 +189,7 @@ class TaskServerManager
                 ->setCharset('utf8')
                 ->setDatabase('yibai_account_manage')
                 ->setMinObjectNum(5)
-                ->setMaxObjectNum(30);
+                ->setMaxObjectNum(30);  //连接池最大数，任务并发数不应超过此值
             DbManager::getInstance()->addConnection(new Connection($config), $this->mainMysql);    //连接池1
             $connection = DbManager::getInstance()->getConnection($this->mainMysql);
             $connection->__getClientPool()->keepMin();   //预热连接池1
