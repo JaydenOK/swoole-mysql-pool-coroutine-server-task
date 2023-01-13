@@ -6,15 +6,16 @@
 namespace module\server;
 
 use chan;
+use EasySwoole\ORM\Db\Config;
 use EasySwoole\ORM\Db\Connection;
 use EasySwoole\ORM\DbManager;
 use EasySwoole\Pool\Manager;
+use EasySwoole\Redis\Config\RedisConfig;
 use Exception;
 use InvalidArgumentException;
 use module\lib\RedisPool;
 use module\task\TaskFactory;
 use Swoole\Coroutine;
-use Swoole\Database\PDOPool;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Process;
@@ -43,7 +44,7 @@ class TaskServerManager
      */
     private $port;
     private $processPrefix = 'co-server-';
-    private $setting = ['worker_num' => 2, 'enable_coroutine' => true];
+    private $setting = ['worker_num' => 1, 'enable_coroutine' => true];
     /**
      * @var bool
      */
@@ -68,6 +69,14 @@ class TaskServerManager
      * @var string
      */
     private $mainRedis = 'mainRedis';
+    /**
+     * @var int
+     */
+    private $maxObjectNum = 80;
+    /**
+     * @var int
+     */
+    private $minObjectNum = 10;
 
     public function run($argv)
     {
@@ -175,7 +184,7 @@ class TaskServerManager
         //初始化连接池
         try {
             //================= 注册 mysql 连接池 =================
-            $config = new \EasySwoole\ORM\Db\Config();
+            $config = new Config();
             $config->setHost('192.168.92.209')
                 ->setPort(3306)
                 ->setUser('appuser')
@@ -183,24 +192,24 @@ class TaskServerManager
                 ->setTimeout(30)
                 ->setCharset('utf8')
                 ->setDatabase('yibai_account_manage')
-                ->setMaxObjectNum(80)  //连接池最大数，任务并发数不应超过此值
-                ->setMinObjectNum(20);
+                ->setMaxObjectNum($this->maxObjectNum)  //连接池最大数，任务并发数不应超过此值
+                ->setMinObjectNum($this->minObjectNum);
             DbManager::getInstance()->addConnection(new Connection($config), $this->mainMysql);    //连接池1
             $connection = DbManager::getInstance()->getConnection($this->mainMysql);
             $connection->__getClientPool()->keepMin();   //预热连接池1
 
 
-            //=================  注册redis连接池 (http://192.168.92.208:9511/Account/mysqlPoolList)  =================
-            $config = new \EasySwoole\Pool\Config();
-            $redisConfig = new \EasySwoole\Redis\Config\RedisConfig();
-            $redisConfig->setHost('192.168.92.208');
-            $redisConfig->setPort(7001);
-            $redisConfig->setAuth('fok09213');
-            $redisConfig->setTimeout(30);
-            // 注册连接池管理对象
-            Manager::getInstance()->register(new RedisPool($config, $redisConfig), $this->mainRedis);
-            //测试redis
-            $this->testPool();
+            //=================  (可选) 注册redis连接池 (http://192.168.92.208:9511/Account/mysqlPoolList)  =================
+//            $config = new \EasySwoole\Pool\Config();
+//            $redisConfig = new RedisConfig();
+//            $redisConfig->setHost('192.168.92.208');
+//            $redisConfig->setPort(7001);
+//            $redisConfig->setAuth('fok09213');
+//            $redisConfig->setTimeout(30);
+//            // 注册连接池管理对象
+//            Manager::getInstance()->register(new RedisPool($config, $redisConfig), $this->mainRedis);
+//            //测试redis
+//            $this->testPool();
             $this->logMessage('use pool:' . $server->worker_pid);
         } catch (Exception $e) {
             $this->logMessage('initPool error:' . $e->getMessage());
@@ -401,6 +410,7 @@ class TaskServerManager
 
         $this->liveTimerId = Timer::tick($this->checkLiveTime * 1000, function () {
         });
+        return true;
     }
 
     private function clearTimer()
@@ -428,6 +438,7 @@ class TaskServerManager
         $this->poolTable->column('loadUseTimes', Table::TYPE_INT, 10);
         $this->poolTable->column('lastAliveTime', Table::TYPE_INT, 10);
         $this->poolTable->create();
+        return true;
     }
 
     private function testPool()
