@@ -15,7 +15,6 @@ use module\lib\RedisPool;
 use module\task\TaskFactory;
 use Swoole\Coroutine;
 use Swoole\Database\PDOPool;
-use Swoole\Database\PDOProxy;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Process;
@@ -53,10 +52,6 @@ class TaskServerManager
      * @var string
      */
     private $pidFile;
-    /**
-     * @var PDOPool
-     */
-    private $pool;
     private $checkAvailableTime = 1;
     private $checkLiveTime = 10;
     private $availableTimerId;
@@ -188,8 +183,8 @@ class TaskServerManager
                 ->setTimeout(30)
                 ->setCharset('utf8')
                 ->setDatabase('yibai_account_manage')
-                ->setMinObjectNum(5)
-                ->setMaxObjectNum(30);  //连接池最大数，任务并发数不应超过此值
+                ->setMaxObjectNum(80)  //连接池最大数，任务并发数不应超过此值
+                ->setMinObjectNum(20);
             DbManager::getInstance()->addConnection(new Connection($config), $this->mainMysql);    //连接池1
             $connection = DbManager::getInstance()->getConnection($this->mainMysql);
             $connection->__getClientPool()->keepMin();   //预热连接池1
@@ -324,6 +319,10 @@ class TaskServerManager
         echo date('[Y-m-d H:i:s]') . $logData . PHP_EOL;
     }
 
+    /**
+     * @param bool $force
+     * @throws Exception
+     */
     private function stop($force = false)
     {
         $pidFile = MODULE_DIR . '/logs/' . $this->pidFile;
@@ -343,6 +342,9 @@ class TaskServerManager
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function status()
     {
         $pidFile = MODULE_DIR . '/logs/' . $this->pidFile;
@@ -373,7 +375,8 @@ class TaskServerManager
     }
 
     /**
-     * @return \Redis
+     * @return mixed
+     * @throws \EasySwoole\Pool\Exception\PoolEmpty
      */
     private function getRedisObject()
     {

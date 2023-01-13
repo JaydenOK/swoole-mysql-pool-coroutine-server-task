@@ -70,9 +70,9 @@ class Config extends SplBean
 
     public function setMaxObjectNum(int $maxObjectNum): Config
     {
-        if ($this->minObjectNum >= $maxObjectNum) {
-            throw new Exception('min num is bigger than max');
-        }
+//        if ($this->minObjectNum >= $maxObjectNum) {
+//            throw new Exception('min num is bigger than max');
+//        }
         $this->maxObjectNum = $maxObjectNum;
         return $this;
     }
