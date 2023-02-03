@@ -1,6 +1,8 @@
 <?php
 /**
- * 使用第三方easyswoole连接池
+ * 协程并发任务服务项目，使用第三方easyswoole连接池
+ *
+ * @author https://github.com/JaydenOK
  */
 
 namespace module\server;
