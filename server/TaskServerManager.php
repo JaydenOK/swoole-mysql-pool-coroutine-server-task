@@ -8,12 +8,12 @@ namespace module\server;
 use chan;
 use EasySwoole\ORM\Db\Config;
 use EasySwoole\ORM\Db\Connection;
+use EasySwoole\ORM\Db\MysqliClient;
 use EasySwoole\ORM\DbManager;
+use EasySwoole\Pool\Exception\PoolEmpty;
 use EasySwoole\Pool\Manager;
-use EasySwoole\Redis\Config\RedisConfig;
 use Exception;
 use InvalidArgumentException;
-use module\lib\RedisPool;
 use module\task\TaskFactory;
 use Swoole\Coroutine;
 use Swoole\Http\Request;
@@ -218,7 +218,7 @@ class TaskServerManager
 
     public function onWorkerStop(Server $server, int $workerId)
     {
-        $this->logMessage('worker stop, worker_pid:' . $server->worker_pid);
+        $this->logMessage('worker stop, worker_pid:' . $server->worker_pid . ', workerId:' . $workerId);
         try {
             $this->logMessage('pool close');
             $this->clearTimer();
@@ -370,7 +370,7 @@ class TaskServerManager
     }
 
     /**
-     * @return \EasySwoole\ORM\Db\MysqliClient
+     * @return MysqliClient
      */
     private function getMysqlObject()
     {
@@ -378,14 +378,14 @@ class TaskServerManager
         $connection = DbManager::getInstance()->getConnection($this->mainMysql);
         $timeout = null;
         //即 createObject()对象，->defer($timeout)参数为空 默认获取config的timeout，此方法会自动回收对象，用户无需关心。
-        /* @var  $mysqlClient \EasySwoole\ORM\Db\MysqliClient */
+        /* @var  $mysqlClient MysqliClient */
         $mysqlClient = $connection->defer($timeout);
         return $mysqlClient;
     }
 
     /**
      * @return mixed
-     * @throws \EasySwoole\Pool\Exception\PoolEmpty
+     * @throws PoolEmpty
      */
     private function getRedisObject()
     {
