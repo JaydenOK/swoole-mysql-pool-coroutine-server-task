@@ -2,7 +2,7 @@
 swoole协程并发任务服务项目，使用easyswoole连接池
 ## 
 
-- 协程容器并发任务项目，请前往 [协程容器并发任务项目](https://github.com/JaydenOK/swoole-container-mysql-pool-coroutine-task).
+- 另一种方式实现，请前往 [协程容器并发任务项目](https://github.com/JaydenOK/swoole-container-mysql-pool-coroutine-task).
 
 #### 功能逻辑
 ```text
