@@ -1,9 +1,12 @@
-## swoole-mysql-pool
+## swoole-mysql-pool-coroutine-server-task
+swoole协程并发任务服务项目，使用easyswoole连接池
+## 
 
+- 协程容器并发任务项目，请前往 [协程容器并发任务项目](https://github.com/JaydenOK/swoole-container-mysql-pool-coroutine-task).
 
 #### 功能逻辑
 ```text
-协程并发项目，使用easyswoole连接池的（用途有并发刷新账号token，拉单，拉Amazon报告等，不用担心一个任务被重复执行问题）。  
+协程并发任务服务项目，使用easyswoole连接池的（用途有并发刷新账号token，拉单，拉Amazon报告，爬虫等，不用担心一个任务被重复执行问题）。  
 可以一个端口启动一个类型任务，或者一个端口启动多个类型任务，当启动多个类型任务时，应适当调大worker_num数。 
 ```
 
