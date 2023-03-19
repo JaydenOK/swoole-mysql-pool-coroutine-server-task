@@ -1,8 +1,8 @@
 ## swoole-mysql-pool-coroutine-server-task
-swoole协程并发任务服务项目，使用easyswoole连接池
+swoole协程并发任务服务项目（常驻Server进程），使用easyswoole连接池
 ## 
 
-- 另一种实现方案，请前往 [协程容器并发任务项目](https://github.com/JaydenOK/swoole-container-mysql-pool-coroutine-task).
+- 另一种协程容器实现方案（非常驻进程），请前往 [协程容器并发任务项目](https://github.com/JaydenOK/swoole-container-mysql-pool-coroutine-task).
 
 #### 功能逻辑
 ```text
